@@ -1,8 +1,21 @@
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
+use std::convert::TryFrom;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Transaction {
+    #[serde(rename = "valor")]
+    pub value: i32,
+    #[serde(rename = "tipo")]
+    pub _type: String,
+    #[serde(rename = "descricao")]
+    pub description: String,
+    #[serde(rename = "realizada_em")]
+    pub timestamp: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct TransactionInput {
     #[serde(rename = "valor")]
     pub value: i32,
     #[serde(rename = "tipo")]
@@ -15,6 +28,22 @@ pub struct Transaction {
         default = "OffsetDateTime::now_utc"
     )]
     pub timestamp: OffsetDateTime,
+}
+
+impl Transaction {
+    pub fn new(
+        value: i32,
+        _type: String,
+        description: String,
+        timestamp: String,
+    ) -> Self {
+        Transaction {
+            value,
+            _type,
+            description,
+            timestamp,
+        }
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -33,7 +62,7 @@ impl TryFrom<String> for Decription {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum TransactionType {
     #[serde(rename = "c")]
     Credit,

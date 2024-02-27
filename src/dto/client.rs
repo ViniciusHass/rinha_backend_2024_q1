@@ -4,24 +4,24 @@ use serde_json::{json, Value};
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
 use super::transaction::{Transaction, TransactionAnswer, TransactionType};
-use super::super::utils::RingBuffer;
 
 #[derive(Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct Client {
     #[serde(rename = "limite")]
-    pub limit: i32,
+    pub limit_value: i32,
     #[serde(rename = "total")]
     pub current: i32,
     #[serde(rename = "data_extrato")]
-    pub transactions_list: RingBuffer<Transaction>,
+    pub transactions_list: Vec<Transaction>,
 }
 
 impl Client {
-    pub fn create_with_value(limit: i32) -> Self {
+    pub fn new(limit_value: i32, current: i32, transactions_list: Vec<Transaction>) -> Self {
         Client {
-            limit,
-            current: 0,
-            transactions_list: RingBuffer::new(),
+            limit_value,
+            current,
+            transactions_list,
         }
     }
 
@@ -31,16 +31,16 @@ impl Client {
                 self.current += transaction.value;
                 self.transactions_list.push(transaction);
                 Ok(TransactionAnswer {
-                    limit: self.limit,
+                    limit: self.limit_value,
                     current: self.current,
                 })
             }
             TransactionType::Debit => {
-                if -self.limit <= self.current - transaction.value {
+                if -self.limit_value <= self.current - transaction.value {
                     self.current -= transaction.value;
                     self.transactions_list.push(transaction);
                     Ok(TransactionAnswer {
-                        limit: self.limit,
+                        limit: self.limit_value,
                         current: self.current,
                     })
                 } else {
@@ -50,12 +50,12 @@ impl Client {
         }
     }
 
-    pub fn list_infomation(&self) -> Result<Json<Value>, ()> {
+    pub fn list_information(&self) -> Result<Json<Value>, ()> {
         Ok(Json(json!({
             "saldo": {
                 "total": self.current,
                 "data_extrato": OffsetDateTime::now_utc().format(&Rfc3339).unwrap(),
-                "limite": self.limit,
+                "limite": self.limit_value,
               },
               "ultimas_transacoes": self.transactions_list,
 

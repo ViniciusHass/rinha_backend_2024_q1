@@ -1,9 +1,10 @@
 mod dto;
-mod utils;
+mod repository;
 
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use self::repository::PostgresRepository;
+use std::{env, sync::Arc};
 
+use self::dto::Transaction;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
@@ -12,56 +13,52 @@ use axum::{
     Json, Router,
 };
 
-use self::dto::{Client, Transaction};
-
-type AccountsState = Arc<HashMap<u8, RwLock<Client>>>;
+type AppState = Arc<PostgresRepository>;
 
 #[tokio::main]
 async fn main() {
-    // TODO: Connect to the bank
-    let accounts = HashMap::<u8, RwLock<Client>>::from_iter([
-        (1, RwLock::new(Client::create_with_value(100_000))),
-        (2, RwLock::new(Client::create_with_value(80_000))),
-        (3, RwLock::new(Client::create_with_value(1_000_000))),
-        (4, RwLock::new(Client::create_with_value(10_000_000))),
-        (5, RwLock::new(Client::create_with_value(500_000))),
-    ]);
+    let database_url = env::var("DATABASE_URL")
+        .unwrap_or(String::from("postgres://admin:123@localhost:5432/rinha"));
 
-    // build our application with a route
+    let repo = PostgresRepository::connect(&database_url, 30)
+        .await
+        .unwrap();
+
+    let app_state = Arc::new(repo);
+
     let app = Router::new()
         .route("/clientes/:id/extrato", get(list_transactions))
-        .route("/clientes/:id/transacoes", post(create_transaction))
-        .with_state(Arc::new(accounts));
+        // .route("/clientes/:id/transacoes", post(create_transaction))
+        .with_state(app_state);
 
-    // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
 
-// basic handler that responds with a static string
 async fn list_transactions(
     Path(user_id): Path<u8>,
-    State(accounts_states): State<AccountsState>,
+    State(state): State<AppState>,
 ) -> impl IntoResponse {
-    match accounts_states.get(&user_id) {
-        Some(client) => Ok(client.read().unwrap().list_infomation()),
-        None => Err(StatusCode::NOT_FOUND),
+    
+    match state.get_client(user_id.into()).await {
+        Ok(client) => Ok(client.list_information()),
+        Err(e) => Err(e),
     }
 }
 
-async fn create_transaction(
-    Path(user_id): Path<u8>,
-    State(accounts_states): State<AccountsState>,
-    Json(transaction): Json<Transaction>,
-) -> impl IntoResponse {
-    match accounts_states.get(&user_id) {
-        Some(client) => {
-            let mut _client = client.write().unwrap();
-            match _client.push_transaction(transaction) {
-                Ok(value) => Ok(Json(value)),
-                Err(_) => Err(StatusCode::UNPROCESSABLE_ENTITY),
-            }
-        }
-        None => Err(StatusCode::NOT_FOUND),
-    }
-}
+// async fn create_transaction(
+//     Path(user_id): Path<u8>,
+//     State(accounts_states): State<AccountsState>,
+//     Json(transaction): Json<Transaction>,
+// ) -> impl IntoResponse {
+//     match accounts_states.get(&user_id) {
+//         Some(client) => {
+//             let mut _client = client.write().unwrap();
+//             match _client.push_transaction(transaction) {
+//                 Ok(value) => Ok(Json(value)),
+//                 Err(_) => Err(StatusCode::UNPROCESSABLE_ENTITY),
+//             }
+//         }
+//         None => Err(StatusCode::NOT_FOUND),
+//     }
+// }
