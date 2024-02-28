@@ -6,25 +6,27 @@ services:
     build: 
       context: .
     hostname: api01
+    restart: unless-stopped
     environment:
-      - DB_HOSTNAME=db
-    ports:
-      - "3001:3000"
+      - DATABASE_URL=postgres://admin:123@db:5432/rinha
     depends_on:
       - db
     deploy:
       resources:
         limits:
           cpus: "0.5"
-          memory: "20MB"
+          memory: "50MB"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:3000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 2
 
   api02:
     <<: *api 
     hostname: api02
     environment:
-      - DB_HOSTNAME=db
-    ports:
-      - "8082:8080"
+      - DATABASE_URL=postgres://admin:123@db:5432/rinha
  
   nginx:
     image: nginx:latest
@@ -39,7 +41,7 @@ services:
       resources:
         limits:
           cpus: "0.3"
-          memory: "100MB"
+          memory: "50MB"
 
   db:
     image: postgres:latest
@@ -56,7 +58,7 @@ services:
       resources:
         limits:
           cpus: "0.2"
-          memory: "200MB"
+          memory: "400MB"
           
 networks:
   default:

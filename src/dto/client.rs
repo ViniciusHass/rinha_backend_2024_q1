@@ -1,23 +1,23 @@
-use axum::Json;
+use axum::{http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
-use super::transaction::{Transaction, TransactionAnswer, TransactionType};
+use super::transaction::{Transaction, TransactionAnswer, TransactionInput, TransactionType};
 
 #[derive(Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct Client {
     #[serde(rename = "limite")]
-    pub limit_value: i32,
+    pub limit_value: i64,
     #[serde(rename = "total")]
-    pub current: i32,
-    #[serde(rename = "data_extrato")]
+    pub current: i64,
+    #[serde(rename = "data_extrato", default = "Vec::new")]
     pub transactions_list: Vec<Transaction>,
 }
 
 impl Client {
-    pub fn new(limit_value: i32, current: i32, transactions_list: Vec<Transaction>) -> Self {
+    pub fn new(limit_value: i64, current: i64, transactions_list: Vec<Transaction>) -> Self {
         Client {
             limit_value,
             current,
@@ -25,11 +25,13 @@ impl Client {
         }
     }
 
-    pub fn push_transaction(&mut self, transaction: Transaction) -> Result<TransactionAnswer, ()> {
+    pub fn validate_transaction(
+        &mut self,
+        transaction: &TransactionInput,
+    ) -> Result<TransactionAnswer, StatusCode> {
         match transaction._type {
             TransactionType::Credit => {
                 self.current += transaction.value;
-                self.transactions_list.push(transaction);
                 Ok(TransactionAnswer {
                     limit: self.limit_value,
                     current: self.current,
@@ -38,13 +40,12 @@ impl Client {
             TransactionType::Debit => {
                 if -self.limit_value <= self.current - transaction.value {
                     self.current -= transaction.value;
-                    self.transactions_list.push(transaction);
                     Ok(TransactionAnswer {
                         limit: self.limit_value,
                         current: self.current,
                     })
                 } else {
-                    Err(())
+                    Err(StatusCode::UNPROCESSABLE_ENTITY)
                 }
             }
         }

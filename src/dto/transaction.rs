@@ -1,11 +1,12 @@
 use serde::{Deserialize, Serialize};
-use time::OffsetDateTime;
 use std::convert::TryFrom;
+use std::fmt;
+use time::OffsetDateTime;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Transaction {
     #[serde(rename = "valor")]
-    pub value: i32,
+    pub value: i64,
     #[serde(rename = "tipo")]
     pub _type: String,
     #[serde(rename = "descricao")]
@@ -14,34 +15,32 @@ pub struct Transaction {
     pub timestamp: String,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
-pub struct TransactionInput {
-    #[serde(rename = "valor")]
-    pub value: i32,
-    #[serde(rename = "tipo")]
-    pub _type: TransactionType,
-    #[serde(rename = "descricao")]
-    pub description: Decription,
-    #[serde(
-        rename = "realizada_em",
-        with = "time::serde::rfc3339",
-        default = "OffsetDateTime::now_utc"
-    )]
-    pub timestamp: OffsetDateTime,
-}
-
 impl Transaction {
-    pub fn new(
-        value: i32,
-        _type: String,
-        description: String,
-        timestamp: String,
-    ) -> Self {
+    pub fn new(value: i64, _type: String, description: String, timestamp: String) -> Self {
         Transaction {
             value,
             _type,
             description,
             timestamp,
+        }
+    }
+}
+
+#[derive(Clone, Deserialize)]
+pub struct TransactionInput {
+    #[serde(rename = "valor")]
+    pub value: i64,
+    #[serde(rename = "tipo")]
+    pub _type: TransactionType,
+    #[serde(rename = "descricao")]
+    pub description: Decription,
+}
+
+impl TransactionInput {
+    pub fn signed_value(&self) -> i64 {
+        match self._type {
+            TransactionType::Credit => self.value,
+            TransactionType::Debit => -self.value,
         }
     }
 }
@@ -62,6 +61,12 @@ impl TryFrom<String> for Decription {
     }
 }
 
+impl From<Decription> for String {
+    fn from(description: Decription) -> Self {
+        description.0
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum TransactionType {
     #[serde(rename = "c")]
@@ -70,10 +75,19 @@ pub enum TransactionType {
     Debit,
 }
 
-#[derive(Clone, Serialize)]
+impl fmt::Display for TransactionType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TransactionType::Credit => write!(f, "c"),
+            TransactionType::Debit => write!(f, "d"),
+        }
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct TransactionAnswer {
     #[serde(rename = "limite")]
-    pub limit: i32,
+    pub limit: i64,
     #[serde(rename = "saldo")]
-    pub current: i32,
+    pub current: i64,
 }
