@@ -2,13 +2,12 @@ version: "3.5"
 
 services:
   api01: &api
-    # image: ana/minha-api-matadora:latest
-    build: 
-      context: .
+    image: viniciushass50/rinha-backend-rust-2024-q1:latest
     hostname: api01
     restart: unless-stopped
     environment:
       - DATABASE_URL=postgres://admin:123@db:5432/rinha
+      - LOG_LEVEL=error
     depends_on:
       - db
     deploy:
@@ -27,6 +26,7 @@ services:
     hostname: api02
     environment:
       - DATABASE_URL=postgres://admin:123@db:5432/rinha
+      - LOG_LEVEL=error
  
   nginx:
     image: nginx:latest
