@@ -7,6 +7,8 @@ edition = "2021"
 
 [dependencies]
 axum = { version = "0.7.4", features = ["json", "tokio"] }
+env_logger = "0.11.2"
+log = "0.4.21"
 serde = { version = "1.0.196", features = ["derive"] }
 serde_json = "1.0.113"
 sqlx = { version = "0.7.3", features = ["postgres", "runtime-tokio", "time", "macros"] }

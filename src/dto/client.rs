@@ -1,4 +1,5 @@
 use axum::{http::StatusCode, Json};
+use log::error;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
@@ -45,6 +46,7 @@ impl Client {
                         current: self.current,
                     })
                 } else {
+                    error!("Failed to validate debit transaction: Insufficient funds");
                     Err(StatusCode::UNPROCESSABLE_ENTITY)
                 }
             }

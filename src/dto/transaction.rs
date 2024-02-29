@@ -1,7 +1,7 @@
+use log::error;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::fmt;
-use time::OffsetDateTime;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Transaction {
@@ -15,17 +15,6 @@ pub struct Transaction {
     pub timestamp: String,
 }
 
-impl Transaction {
-    pub fn new(value: i64, _type: String, description: String, timestamp: String) -> Self {
-        Transaction {
-            value,
-            _type,
-            description,
-            timestamp,
-        }
-    }
-}
-
 #[derive(Clone, Deserialize)]
 pub struct TransactionInput {
     #[serde(rename = "valor")]
@@ -33,27 +22,19 @@ pub struct TransactionInput {
     #[serde(rename = "tipo")]
     pub _type: TransactionType,
     #[serde(rename = "descricao")]
-    pub description: Decription,
-}
-
-impl TransactionInput {
-    pub fn signed_value(&self) -> i64 {
-        match self._type {
-            TransactionType::Credit => self.value,
-            TransactionType::Debit => -self.value,
-        }
-    }
+    pub description: Description,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(try_from = "String")]
-pub struct Decription(String);
+pub struct Description(String);
 
-impl TryFrom<String> for Decription {
+impl TryFrom<String> for Description {
     type Error = &'static str;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         if value.is_empty() || value.len() > 10 {
+            error!("Invalid string: {}", value);
             Err("String invalida")
         } else {
             Ok(Self(value))
@@ -61,8 +42,8 @@ impl TryFrom<String> for Decription {
     }
 }
 
-impl From<Decription> for String {
-    fn from(description: Decription) -> Self {
+impl From<Description> for String {
+    fn from(description: Description) -> Self {
         description.0
     }
 }
@@ -84,7 +65,7 @@ impl fmt::Display for TransactionType {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TransactionAnswer {
     #[serde(rename = "limite")]
     pub limit: i64,
